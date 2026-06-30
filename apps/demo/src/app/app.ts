@@ -131,19 +131,45 @@ export class App {
         format: 'plain-text',
         length: 'short',
       };
-      const availability = await factory.availability(options);
+      const availability = await this.withTimeout(
+        factory.availability(options),
+        10000,
+        'Timed out checking Chrome/Edge Summarizer availability.',
+      );
       if (availability === 'unavailable') {
         throw new Error('Chrome/Edge Summarizer API reported unavailable for this browser profile/device.');
       }
 
-      this.setResult('chrome', { state: 'running', adapterId: 'chrome-summarizer' });
-      const summarizer = await factory.create({
-        ...options,
-        monitor(monitor: EventTarget) {
-          monitor.addEventListener('downloadprogress', () => undefined);
-        },
+      this.setResult('chrome', {
+        state: 'running',
+        adapterId: 'chrome-summarizer',
+        error: availability === 'downloadable' || availability === 'downloading'
+          ? 'Chrome is downloading or preparing the built-in model. If this takes too long, the demo will fall back.'
+          : undefined,
       });
-      const output = await summarizer.summarize(input);
+      const summarizer = await this.withTimeout(
+        factory.create({
+          ...options,
+          monitor: (monitor: EventTarget) => {
+            monitor.addEventListener('downloadprogress', (event) => {
+              const progress = event as ProgressEvent;
+              const percent = Number.isFinite(progress.loaded) ? Math.round(progress.loaded * 100) : undefined;
+              this.setResult('chrome', {
+                state: 'running',
+                adapterId: 'chrome-summarizer',
+                error: percent === undefined ? 'Downloading Chrome built-in model…' : `Downloading Chrome built-in model… ${percent}%`,
+              });
+            });
+          },
+        }),
+        45000,
+        'Timed out creating Chrome/Edge Summarizer. The browser may still be downloading the on-device model; falling back for this run.',
+      );
+      const output = await this.withTimeout(
+        summarizer.summarize(input),
+        30000,
+        'Timed out waiting for Chrome/Edge Summarizer output; falling back for this run.',
+      );
       summarizer.destroy?.();
 
       const result: RuntimeResult = {
@@ -247,6 +273,21 @@ export class App {
 
   private setResult(runtime: RuntimeId, result: RuntimeResult): void {
     this.results.update((current) => ({ ...current, [runtime]: result }));
+  }
+
+  private withTimeout<T>(value: Promise<T> | T, timeoutMs: number, message: string): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      Promise.resolve(value)
+        .then((result) => {
+          window.clearTimeout(timeout);
+          resolve(result);
+        })
+        .catch((error: unknown) => {
+          window.clearTimeout(timeout);
+          reject(error);
+        });
+    });
   }
 
   private resultFromWorker(result: WorkerAiTaskResult<string>): RuntimeResult {

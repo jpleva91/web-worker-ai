@@ -2,7 +2,7 @@ import { WorkerAiRuntimeAdapter, WorkerAiTaskRequest } from './types';
 
 export interface ChromeSummarizerAdapterConfig {
   sharedContext?: string;
-  type?: 'tl;dr' | 'key-points' | 'teaser' | 'headline';
+  type?: 'tldr' | 'key-points' | 'teaser' | 'headline';
   format?: 'markdown' | 'plain-text';
   length?: 'short' | 'medium' | 'long';
 }
