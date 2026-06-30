@@ -1,18 +1,85 @@
 <main class="demo-shell">
   <section>
     <p class="eyebrow">web-worker-ai</p>
-    <h1>Generic browser-local AI worker runtime</h1>
+    <h1>Browser summarization fallback chain</h1>
     <p>
-      A liftable Angular/Nx library for lazy local-AI worker warmup, runtime adapters,
-      request correlation, stale guards, fallbacks, and privacy-safe telemetry.
+      Product path: try the Chrome/Edge browser Summarizer API first, fall back to Transformers.js in a Web Worker,
+      then fall back to deterministic output if neither local AI runtime is available.
     </p>
-    <wwai-worker-ai-status [snapshot]="snapshot()" />
   </section>
 
-  <section class="card">
-    <h2>Demo workload: generic text summary</h2>
-    <p class="input">{{ inputText() }}</p>
-    <p class="output">{{ summary() }}</p>
-    <small>Demo uses deterministic/fake behavior; no model weights are downloaded.</small>
+  <section class="card prompt-card">
+    <h2>Prompt</h2>
+    <label for="summary-input">Text to summarize</label>
+    <textarea
+      id="summary-input"
+      [ngModel]="inputText()"
+      (ngModelChange)="updateInput($event)"
+      rows="8"
+    ></textarea>
+    <button type="button" [disabled]="cascadeRunning()" (click)="runCascade()">
+      {{ cascadeRunning() ? 'Running fallback chain…' : 'Run preferred fallback chain' }}
+    </button>
+  </section>
+
+  @if (finalOutput()) {
+    <section class="card success-card">
+      <h2>Final summary</h2>
+      <p class="output">{{ finalOutput() }}</p>
+    </section>
+  }
+
+  @if (cascadeLog().length) {
+    <section class="card">
+      <h2>Fallback trace</h2>
+      <ol class="trace-list">
+        @for (step of cascadeLog(); track step.runtime) {
+          <li>
+            <strong>{{ step.runtime }}</strong>
+            <span>{{ step.result.state }}</span>
+            <p>{{ step.reason }}</p>
+          </li>
+        }
+      </ol>
+    </section>
+  }
+
+  <section class="runtime-grid" aria-label="Runtime demos">
+    @for (runtime of runtimes; track runtime.id) {
+      <article class="card runtime-card">
+        <h2>{{ runtime.label }}</h2>
+        <p>{{ runtime.description }}</p>
+        <button
+          type="button"
+          [disabled]="results()[runtime.id].state === 'initializing' || results()[runtime.id].state === 'running'"
+          (click)="runSingle(runtime.id)"
+        >
+          @if (results()[runtime.id].state === 'initializing') {
+            Loading…
+          } @else if (results()[runtime.id].state === 'running') {
+            Summarizing…
+          } @else {
+            Test this path
+          }
+        </button>
+
+        <p class="state">State: {{ results()[runtime.id].state }}</p>
+
+        @if (results()[runtime.id].output) {
+          <h3>Output</h3>
+          <p class="output">{{ results()[runtime.id].output }}</p>
+          <small>
+            Adapter: {{ results()[runtime.id].adapterId || 'unknown' }}
+            @if (results()[runtime.id].durationMs !== undefined) {
+              · {{ results()[runtime.id].durationMs }}ms
+            }
+          </small>
+        }
+
+        @if (results()[runtime.id].error) {
+          <p class="error">{{ results()[runtime.id].error }}</p>
+        }
+      </article>
+    }
   </section>
 </main>

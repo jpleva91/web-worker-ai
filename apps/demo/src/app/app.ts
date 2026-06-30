@@ -1,19 +1,208 @@
-import { Component, computed, signal } from '@angular/core';
-import { WorkerAi } from 'web-worker-ai';
+import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { WorkerAiTaskResult, WorkerAiWorkerMessage } from 'web-worker-ai';
+
+type RuntimeId = 'chrome' | 'transformers' | 'fake';
+
+type DemoRuntime = {
+  id: RuntimeId;
+  label: string;
+  description: string;
+};
+
+type RuntimeState = 'idle' | 'initializing' | 'running' | 'done' | 'skipped' | 'error';
+
+type RuntimeResult = {
+  state: RuntimeState;
+  output?: string;
+  error?: string;
+  adapterId?: string;
+  durationMs?: number;
+};
+
+type CascadeStep = {
+  runtime: RuntimeId;
+  reason: string;
+  result: RuntimeResult;
+};
 
 @Component({
-  imports: [WorkerAi],
+  imports: [FormsModule],
   selector: 'app-root',
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App {
   protected readonly inputText = signal(
-    'Browser-local AI should run in a Web Worker so model loading and inference do not block application rendering.',
+    'Browser-local summarization is a good fit for small text workloads because the model can run near the UI without sending data to a server. Running inference in a Web Worker keeps loading and generation off the main thread, while the app can still fall back if the device or browser cannot support the selected runtime.',
   );
-  protected readonly snapshot = signal({ state: 'ready' as const });
-  protected readonly summary = computed(() => {
-    const text = this.inputText().trim();
-    return text.length > 96 ? `${text.slice(0, 93)}...` : text;
+
+  protected readonly runtimes: DemoRuntime[] = [
+    {
+      id: 'chrome',
+      label: '1. Chrome / Edge Summarizer API',
+      description: 'Preferred path. Uses the browser-provided Summarizer API when available in Chromium browsers/profiles.',
+    },
+    {
+      id: 'transformers',
+      label: '2. Hugging Face Transformers.js fallback',
+      description: 'Fallback path. Downloads a small browser model and summarizes inside a Web Worker when the browser API is absent.',
+    },
+    {
+      id: 'fake',
+      label: '3. Deterministic fallback',
+      description: 'Last-resort path. No model download; deterministic trim so the app still returns something predictable.',
+    },
+  ];
+
+  protected readonly results = signal<Record<RuntimeId, RuntimeResult>>({
+    chrome: { state: 'idle' },
+    transformers: { state: 'idle' },
+    fake: { state: 'idle' },
   });
+  protected readonly cascadeRunning = signal(false);
+  protected readonly cascadeLog = signal<CascadeStep[]>([]);
+  protected readonly finalOutput = signal('');
+
+  protected updateInput(value: string): void {
+    this.inputText.set(value);
+  }
+
+  protected async runCascade(): Promise<void> {
+    const input = this.inputText().trim();
+    if (!input || this.cascadeRunning()) return;
+
+    this.cascadeRunning.set(true);
+    this.finalOutput.set('');
+    this.cascadeLog.set([]);
+    this.results.set({
+      chrome: { state: 'idle' },
+      transformers: { state: 'idle' },
+      fake: { state: 'idle' },
+    });
+
+    for (const runtime of ['chrome', 'transformers', 'fake'] as const) {
+      const result = await this.runRuntime(runtime, input);
+      this.appendCascadeStep(runtime, result);
+      if (result.state === 'done' && result.output) {
+        this.finalOutput.set(result.output);
+        this.markRemainingSkipped(runtime);
+        this.cascadeRunning.set(false);
+        return;
+      }
+    }
+
+    this.cascadeRunning.set(false);
+  }
+
+  protected async runSingle(runtime: RuntimeId): Promise<void> {
+    const input = this.inputText().trim();
+    if (!input) return;
+    await this.runRuntime(runtime, input);
+  }
+
+  private runRuntime(runtime: RuntimeId, input: string): Promise<RuntimeResult> {
+    this.setResult(runtime, { state: 'initializing' });
+    const worker = this.createWorker(runtime);
+    const requestId = crypto.randomUUID();
+
+    return new Promise((resolve) => {
+      const timeout = window.setTimeout(() => {
+        worker.terminate();
+        const result: RuntimeResult = {
+          state: 'error',
+          error: runtime === 'transformers'
+            ? 'Timed out while loading/running Transformers.js. The model may still be downloading; try again after it finishes caching.'
+            : 'Timed out waiting for the worker runtime.',
+        };
+        this.setResult(runtime, result);
+        resolve(result);
+      }, runtime === 'transformers' ? 120000 : 20000);
+
+      worker.onmessage = ({ data }: MessageEvent<WorkerAiWorkerMessage<string>>) => {
+        if (data.type === 'ready') {
+          this.setResult(runtime, { state: 'running', adapterId: data.adapterId });
+          worker.postMessage({
+            type: 'task',
+            request: {
+              requestId,
+              taskType: 'summarize',
+              input,
+              timeoutMs: runtime === 'transformers' ? 120000 : 20000,
+            },
+          });
+          return;
+        }
+
+        if (data.type === 'result' && data.result.requestId === requestId) {
+          window.clearTimeout(timeout);
+          worker.terminate();
+          const result = this.resultFromWorker(data.result);
+          this.setResult(runtime, result);
+          resolve(result);
+          return;
+        }
+
+        if (data.type === 'error') {
+          window.clearTimeout(timeout);
+          worker.terminate();
+          const result: RuntimeResult = {
+            state: 'error',
+            error: data.error.message ?? data.error.errorClass,
+          };
+          this.setResult(runtime, result);
+          resolve(result);
+        }
+      };
+
+      worker.onerror = (event) => {
+        window.clearTimeout(timeout);
+        worker.terminate();
+        const result: RuntimeResult = { state: 'error', error: event.message };
+        this.setResult(runtime, result);
+        resolve(result);
+      };
+
+      worker.postMessage({ type: 'init' });
+    });
+  }
+
+  private createWorker(runtime: RuntimeId): Worker {
+    if (runtime === 'chrome') {
+      return new Worker(new URL('./chrome-summary.worker', import.meta.url), { type: 'module' });
+    }
+    if (runtime === 'transformers') {
+      return new Worker(new URL('./transformers-summary.worker', import.meta.url), { type: 'module' });
+    }
+    return new Worker(new URL('./fake-summary.worker', import.meta.url), { type: 'module' });
+  }
+
+  private setResult(runtime: RuntimeId, result: RuntimeResult): void {
+    this.results.update((current) => ({ ...current, [runtime]: result }));
+  }
+
+  private resultFromWorker(result: WorkerAiTaskResult<string>): RuntimeResult {
+    return {
+      state: 'done',
+      output: result.output,
+      adapterId: result.adapterId,
+      durationMs: result.durationMs,
+    };
+  }
+
+  private appendCascadeStep(runtime: RuntimeId, result: RuntimeResult): void {
+    const reason = result.state === 'done'
+      ? 'Used successfully.'
+      : result.error ?? 'Unavailable; falling back.';
+    this.cascadeLog.update((current) => [...current, { runtime, reason, result }]);
+  }
+
+  private markRemainingSkipped(successfulRuntime: RuntimeId): void {
+    const order: RuntimeId[] = ['chrome', 'transformers', 'fake'];
+    const successIndex = order.indexOf(successfulRuntime);
+    for (const runtime of order.slice(successIndex + 1)) {
+      const skipped: RuntimeResult = { state: 'skipped', error: `Skipped because ${successfulRuntime} succeeded.` };
+      this.setResult(runtime, skipped);
+    }
+  }
 }
