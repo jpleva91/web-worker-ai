@@ -1,4 +1,4 @@
-# @m3kit/worker-ai
+# web-worker-ai
 
 Generic browser-local AI worker orchestration for Angular/Nx apps.
 
@@ -15,8 +15,9 @@ import {
   WorkerAiService,
   WorkerAiWarmupService,
   createWorkerAiWorker,
+  TransformersJsWorkerAiAdapter,
   FakeWorkerAiAdapter,
-} from '@m3kit/worker-ai';
+} from 'web-worker-ai';
 ```
 
 ## Docs
@@ -26,6 +27,7 @@ import {
 - [Spec](specs/001-generic-web-worker-ai/spec.md)
 - [Plan](specs/001-generic-web-worker-ai/plan.md)
 - [Tasks / evidence](specs/001-generic-web-worker-ai/tasks.md)
+- [Transformers.js adapter](packages/worker-ai/README.md#adapter-strategy)
 
 ## Local verification
 
@@ -37,7 +39,7 @@ pnpm nx build demo --skip-nx-cache
 
 Latest local evidence:
 
-- `worker-ai` tests: 7 files passed, 24 tests passed.
+- `worker-ai` tests: 8 files passed, 27 tests passed.
 - `worker-ai` build: passed.
 - `demo` build: passed.
 - Domain scans clean.

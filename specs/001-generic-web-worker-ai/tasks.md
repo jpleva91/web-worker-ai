@@ -8,12 +8,14 @@
 - [x] Ran sanity query and captured architecture decision.
 - [x] Created Nx Angular workspace at `/home/red/projects/web-worker-ai`.
 - [x] Initialized Spec Kit in the workspace.
-- [x] Generated publishable Angular library `packages/worker-ai` with import path `@m3kit/worker-ai`.
+- [x] Generated publishable Angular library `packages/worker-ai` with import path `web-worker-ai`.
 - [x] Implemented core types, heuristics, validators, worker harness, Angular services, fake adapter, status component, README, and demo shell.
 - [x] Added orchestration tests for `WorkerAiService`: fallback when not ready, request correlation, stale guard, validation fallback, and timeout/cancel.
 - [x] Added warmup tests for `WorkerAiWarmupService`: disabled skip, init/ready transition, progress capture, and init error capture.
 - [x] Added worker harness tests for `createWorkerAiWorker`: init/ready, task result correlation, cancellation suppression, and request-scoped errors.
 - [x] Removed stale Nx welcome demo component and updated demo spec artifact.
+- [x] Added Transformers.js adapter tests for injected pipeline loading, output normalization, and task mismatch protection.
+- [x] Renamed package/import path to repo-native `web-worker-ai`.
 - [x] Created Obsidian project index note with NotebookLM URL/source IDs and repo path.
 - [x] Ran fresh review gate; initial verdict was BLOCK due to missing orchestration tests and stale task ledger/demo spec.
 - [x] Resolved review blockers and reran local verification gates.
@@ -31,8 +33,8 @@ grep -RniE '\b(product_specific_placeholder)\b' packages/worker-ai/src packages/
 
 Results:
 
-- [x] `worker-ai` tests passed: 7 files, 24 tests.
-- [x] `worker-ai` build passed: built `@m3kit/worker-ai`.
+- [x] `worker-ai` tests passed: 8 files, 27 tests.
+- [x] `worker-ai` build passed: built `web-worker-ai`.
 - [x] `demo` build passed with no Nx welcome CSS budget warning after deleting stale starter component.
 - [x] Domain scan passed: no product-specific vocabulary in core package docs/source.
 

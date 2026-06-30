@@ -1,4 +1,4 @@
-# @m3kit/worker-ai
+# web-worker-ai
 
 Generic browser-local AI worker orchestration for Angular/Nx apps.
 
@@ -9,8 +9,9 @@ This package is intentionally **domain-agnostic**. It does not know about any pr
 - Angular service wrapper for worker-backed AI tasks.
 - Worker warmup lifecycle: `idle`, `warming`, `ready`, `failed`, `skipped`.
 - Runtime adapter seam for WebLLM, Transformers.js, Chrome built-in AI APIs, or app-provided workers.
+- Built-in optional `TransformersJsWorkerAiAdapter` that dynamically imports `@huggingface/transformers` only when used.
 - Fake adapter for tests and demos so CI never downloads model weights.
-- Optional status component: `<m3k-worker-ai-status>`.
+- Optional status component: `<wwai-worker-ai-status>`.
 
 ## What it is not
 
@@ -27,7 +28,7 @@ import {
   WorkerAiService,
   WorkerAiWarmupService,
   isBoundedString,
-} from '@m3kit/worker-ai';
+} from 'web-worker-ai';
 ```
 
 Configure warmup in your app after the first meaningful render or route stabilization:
@@ -54,12 +55,27 @@ const result = await workerAi.run<string, string>('summarize', inputText, {
 
 ## Adapter strategy
 
-The core package ships a fake adapter only. Real runtime adapters should be optional recipes or secondary packages so applications can choose their own model, asset host, CSP, and browser support posture.
+The core package ships a fake adapter for deterministic CI/demo use and a built-in optional `TransformersJsWorkerAiAdapter`. The Transformers adapter uses a dynamic import for `@huggingface/transformers`, so applications install that dependency only when they choose that runtime.
 
-Recommended v0.1 integrations:
+```bash
+pnpm add @huggingface/transformers
+```
 
-- WebLLM recipe for broad instruction-following in browsers with WebGPU.
-- Transformers.js recipe for smaller task models and ONNX-backed browser inference.
+```ts
+import { TransformersJsWorkerAiAdapter, createWorkerAiWorker } from 'web-worker-ai';
+
+createWorkerAiWorker({
+  adapter: new TransformersJsWorkerAiAdapter({
+    task: 'summarization',
+    model: 'Xenova/distilbart-cnn-6-6',
+  }),
+});
+```
+
+Recommended runtime paths:
+
+- Transformers.js adapter for smaller task models and ONNX-backed browser inference.
+- WebLLM recipe for broader instruction-following in browsers with WebGPU.
 - Chrome built-in AI recipe when browser support and worker limitations fit the application.
 
 ## Privacy defaults

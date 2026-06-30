@@ -2,7 +2,7 @@
 
 ## One-line thesis
 
-`@m3kit/worker-ai` is a generic Angular/Nx library for running browser-local AI tasks in a Web Worker without coupling an app to a specific model runtime or a product domain.
+`web-worker-ai` is a generic Angular/Nx library for running browser-local AI tasks in a Web Worker without coupling an app to a specific model runtime or a product domain.
 
 ## What it solves
 
@@ -14,9 +14,10 @@ Frontend teams increasingly want local AI features—summarization, rewriting, e
 - **Angular orchestration service**: `WorkerAiService` handles routing, timeout, validation, fallback, and stale-result protection.
 - **Warmup lifecycle service**: `WorkerAiWarmupService` manages `idle`, `warming`, `ready`, `failed`, and `skipped` states.
 - **Worker-side harness**: `createWorkerAiWorker(...)` wraps runtime adapters and emits progress, ready, result, and error messages.
-- **Runtime adapter seam**: WebLLM, Transformers.js, Chrome built-in AI, or app-specific adapters can plug in later.
+- **Runtime adapter seam**: WebLLM, Transformers.js, Chrome built-in AI, or app-specific adapters can plug in.
+- **Transformers.js adapter**: built-in optional adapter that dynamically imports `@huggingface/transformers` only when used.
 - **Fake adapter**: CI/demo-safe adapter so tests do not download model weights.
-- **Status component**: optional `<m3k-worker-ai-status>` UI for passive local-AI readiness.
+- **Status component**: optional `<wwai-worker-ai-status>` UI for passive local-AI readiness.
 - **Spec Kit artifacts**: source-grounded spec, plan, task ledger, and approval queue.
 
 ## What it explicitly does not do
@@ -62,8 +63,8 @@ pnpm nx build demo --skip-nx-cache
 
 Latest local result:
 
-- `worker-ai` tests: **7 files passed, 24 tests passed**.
-- `worker-ai` build: **passed**, built `@m3kit/worker-ai`.
+- `worker-ai` tests: **8 files passed, 27 tests passed**.
+- `worker-ai` build: **passed**, built `web-worker-ai`.
 - `demo` build: **passed**.
 - Domain scan: **clean for product-specific vocabulary in core package docs/source**.
 
@@ -77,7 +78,6 @@ Sources included WebLLM docs, Transformers.js docs, Chrome built-in Summarizer A
 
 ## Recommended next steps
 
-1. Add optional adapter recipe docs for WebLLM and Transformers.js.
-2. Add a minimal real WebLLM demo behind an explicit opt-in route.
-3. Add package publish metadata once naming is final.
-4. Decide whether package scope remains `@m3kit/worker-ai` or changes before npm publish.
+1. Add a live Transformers.js demo route behind explicit opt-in so regular CI/demo builds still avoid model downloads.
+2. Add a WebLLM adapter/recipe for broader instruction-following in WebGPU browsers.
+3. Add package publish metadata once npm naming is final.

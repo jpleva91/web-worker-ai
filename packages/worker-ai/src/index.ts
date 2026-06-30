@@ -3,6 +3,7 @@ export * from './lib/heuristics';
 export * from './lib/validators';
 export * from './lib/create-worker-ai-worker';
 export * from './lib/fake-worker-ai-adapter';
+export * from './lib/transformers-js-adapter';
 export * from './lib/worker-ai.service';
 export * from './lib/worker-ai-warmup.service';
 export * from './lib/worker-ai/worker-ai';

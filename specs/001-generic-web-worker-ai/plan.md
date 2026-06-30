@@ -4,7 +4,7 @@
 
 ## Summary
 
-Build a generic Angular/Nx library package, `@m3kit/worker-ai`, that gives consumers a typed Web Worker local-AI orchestration layer. The v0.1 implementation is adapter-first: it provides protocols, services, warmup state, heuristics, validation/fallback/stale-guard logic, fake adapter, status component, tests, and docs. Heavy runtimes such as WebLLM and Transformers.js remain optional recipes to keep the core package liftable.
+Build a generic Angular/Nx library package, `web-worker-ai`, that gives consumers a typed Web Worker local-AI orchestration layer. The v0.1 implementation is adapter-first: it provides protocols, services, warmup state, heuristics, validation/fallback/stale-guard logic, fake adapter, status component, tests, and docs. Heavy runtimes such as WebLLM and Transformers.js remain optional recipes to keep the core package liftable.
 
 ## Technical Context
 

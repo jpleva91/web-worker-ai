@@ -1,5 +1,5 @@
 import { Component, computed, signal } from '@angular/core';
-import { WorkerAi } from '@m3kit/worker-ai';
+import { WorkerAi } from 'web-worker-ai';
 
 @Component({
   imports: [WorkerAi],

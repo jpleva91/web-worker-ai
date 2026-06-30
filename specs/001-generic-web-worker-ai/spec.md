@@ -48,7 +48,7 @@ As an Angular/Nx application developer, I want a liftable library that runs brow
 - `pnpm nx test worker-ai` passes.
 - `pnpm nx build worker-ai` passes.
 - `pnpm nx build demo` passes.
-- Core source is generic and public API imports from `@m3kit/worker-ai`.
+- Core source is generic and public API imports from `web-worker-ai`.
 - README states generic scope and privacy defaults.
 - NotebookLM research packet exists and is cited in Obsidian project index.
 
