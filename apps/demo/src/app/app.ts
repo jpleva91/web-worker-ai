@@ -26,6 +26,16 @@ type CascadeStep = {
   result: RuntimeResult;
 };
 
+type ChromeSummarizer = {
+  summarize(input: string, options?: Record<string, unknown>): Promise<string> | string;
+  destroy?: () => void;
+};
+
+type ChromeSummarizerFactory = {
+  availability(options?: Record<string, unknown>): Promise<string> | string;
+  create(options?: Record<string, unknown>): Promise<ChromeSummarizer> | ChromeSummarizer;
+};
+
 @Component({
   imports: [FormsModule],
   selector: 'app-root',
@@ -41,7 +51,7 @@ export class App {
     {
       id: 'chrome',
       label: '1. Chrome / Edge Summarizer API',
-      description: 'Preferred path. Uses the browser-provided Summarizer API when available in Chromium browsers/profiles.',
+      description: 'Preferred path. Uses the browser-provided Summarizer API on the main thread when available in Chromium browsers/profiles.',
     },
     {
       id: 'transformers',
@@ -102,6 +112,59 @@ export class App {
   }
 
   private runRuntime(runtime: RuntimeId, input: string): Promise<RuntimeResult> {
+    if (runtime === 'chrome') return this.runChromeSummarizer(input);
+    return this.runWorkerRuntime(runtime, input);
+  }
+
+  private async runChromeSummarizer(input: string): Promise<RuntimeResult> {
+    this.setResult('chrome', { state: 'initializing' });
+    const started = performance.now();
+
+    try {
+      const factory = this.getChromeSummarizerFactory();
+      if (!factory) {
+        throw new Error('Chrome/Edge Summarizer API is not exposed in this browser. Use Chrome or Edge 138+ with built-in AI support, sufficient device resources, and the model available.');
+      }
+
+      const options = {
+        type: 'tldr',
+        format: 'plain-text',
+        length: 'short',
+      };
+      const availability = await factory.availability(options);
+      if (availability === 'unavailable') {
+        throw new Error('Chrome/Edge Summarizer API reported unavailable for this browser profile/device.');
+      }
+
+      this.setResult('chrome', { state: 'running', adapterId: 'chrome-summarizer' });
+      const summarizer = await factory.create({
+        ...options,
+        monitor(monitor: EventTarget) {
+          monitor.addEventListener('downloadprogress', () => undefined);
+        },
+      });
+      const output = await summarizer.summarize(input);
+      summarizer.destroy?.();
+
+      const result: RuntimeResult = {
+        state: 'done',
+        output,
+        adapterId: 'chrome-summarizer',
+        durationMs: Math.round(performance.now() - started),
+      };
+      this.setResult('chrome', result);
+      return result;
+    } catch (error) {
+      const result: RuntimeResult = {
+        state: 'error',
+        error: error instanceof Error ? error.message : String(error),
+      };
+      this.setResult('chrome', result);
+      return result;
+    }
+  }
+
+  private runWorkerRuntime(runtime: Exclude<RuntimeId, 'chrome'>, input: string): Promise<RuntimeResult> {
     this.setResult(runtime, { state: 'initializing' });
     const worker = this.createWorker(runtime);
     const requestId = crypto.randomUUID();
@@ -167,14 +230,19 @@ export class App {
     });
   }
 
-  private createWorker(runtime: RuntimeId): Worker {
-    if (runtime === 'chrome') {
-      return new Worker(new URL('./chrome-summary.worker', import.meta.url), { type: 'module' });
-    }
+  private createWorker(runtime: Exclude<RuntimeId, 'chrome'>): Worker {
     if (runtime === 'transformers') {
       return new Worker(new URL('./transformers-summary.worker', import.meta.url), { type: 'module' });
     }
     return new Worker(new URL('./fake-summary.worker', import.meta.url), { type: 'module' });
+  }
+
+  private getChromeSummarizerFactory(): ChromeSummarizerFactory | undefined {
+    const root = globalThis as unknown as {
+      Summarizer?: ChromeSummarizerFactory;
+      ai?: { summarizer?: ChromeSummarizerFactory };
+    };
+    return root.Summarizer ?? root.ai?.summarizer;
   }
 
   private setResult(runtime: RuntimeId, result: RuntimeResult): void {
