@@ -1,0 +1,16 @@
+.m3k-worker-ai-status {
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 999px;
+  display: inline-flex;
+  font: 500 0.8125rem/1 system-ui, sans-serif;
+  padding: 0.375rem 0.625rem;
+}
+
+.m3k-worker-ai-status[data-state='ready'] {
+  color: #047857;
+}
+
+.m3k-worker-ai-status[data-state='failed'],
+.m3k-worker-ai-status[data-state='skipped'] {
+  color: #92400e;
+}

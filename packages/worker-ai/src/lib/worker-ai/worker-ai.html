@@ -1,0 +1,9 @@
+<span class="m3k-worker-ai-status" [attr.data-state]="snapshot().state">
+  @switch (snapshot().state) {
+    @case ('idle') { Local AI idle }
+    @case ('warming') { Local AI preparing }
+    @case ('ready') { Local AI ready }
+    @case ('failed') { Local AI unavailable }
+    @case ('skipped') { Local AI skipped: {{ snapshot().skipReason }} }
+  }
+</span>

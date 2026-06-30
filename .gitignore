@@ -45,3 +45,9 @@ Thumbs.db
 .claude/settings.local.json
 
 .angular
+
+__screenshots__/
+
+# Local agent/tooling state
+.agents/
+.verdaccio/

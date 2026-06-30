@@ -1,1 +1,18 @@
-<app-nx-welcome></app-nx-welcome>
+<main class="demo-shell">
+  <section>
+    <p class="eyebrow">@m3kit/worker-ai</p>
+    <h1>Generic browser-local AI worker runtime</h1>
+    <p>
+      A liftable Angular/Nx library for lazy local-AI worker warmup, runtime adapters,
+      request correlation, stale guards, fallbacks, and privacy-safe telemetry.
+    </p>
+    <m3k-worker-ai-status [snapshot]="snapshot()" />
+  </section>
+
+  <section class="card">
+    <h2>Demo workload: generic text summary</h2>
+    <p class="input">{{ inputText() }}</p>
+    <p class="output">{{ summary() }}</p>
+    <small>Demo uses deterministic/fake behavior; no model weights are downloaded.</small>
+  </section>
+</main>
